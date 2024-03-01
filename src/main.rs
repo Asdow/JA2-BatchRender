@@ -46,10 +46,14 @@ fn main() {
     }
 
 
-    // Call blender
+    // Create and check filepaths 
     let mut processes: Vec<process::Child> = Vec::new();
     let mut blendfileDir = currentDir.clone();
-    blendfileDir.push(config.blendFilename);
+    blendfileDir.push(&config.blendFilename);
+    if blendfileDir.exists() == false {
+        println!("Blender file not found at: {}", blendfileDir.to_string_lossy());
+        process::exit(4);
+    }
 
     for i in 0..count
     {
@@ -57,10 +61,20 @@ fn main() {
         let mut pythonFile = currentDir.clone();
         pythonFile.push("renderGeneratedScripts");
         pythonFile.push(format!("{}", scriptFilename));
+        if pythonFile.exists() == false {
+            println!("Python script not found at: {}", pythonFile.to_string_lossy());
+            process::exit(5);
+        }
+    
 
-        let blenderPath = format!("{}\\blender.exe", config.blenderDir);
-        println!("{}", blenderPath);
+        let blenderPath = format!("{}\\blender.exe", &config.blenderDir);
+        if Path::new(&blenderPath).exists() == false {
+            println!("Blender executable not found at: {}", &blenderPath);
+            process::exit(6);
+        }
 
+
+        // Call blender
         let com = process::Command::new(blenderPath)
         .args(&[
             "-b", blendfileDir.to_str().unwrap(),
@@ -73,9 +87,21 @@ fn main() {
 
 
     // Wait for the renders to finish
-    for mut child in processes
+    for child in processes
     {
-        child.wait().expect("blender.exe wasn't running");
+        // child.wait().expect("blender.exe wasn't running");
+        let res = child.wait_with_output();
+        match res
+        {
+            Ok(status) => 
+            {
+                println!("{:?}", status);
+            }
+            Err(e) => 
+            {
+                println!("Error for process: {}", e);
+            }
+        }
     }
 
     println!("Rendering complete!");
